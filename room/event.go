@@ -13,6 +13,11 @@
 
 package room
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // EventWithoutContent represents a room event without the content field.
 // This struct should be extended by more concrete types.
 type EventWithoutContent struct {
@@ -27,4 +32,38 @@ type EventWithoutContent struct {
 // to a matrix room.
 func (e EventWithoutContent) IsRoomMessageEvent() bool {
 	return e.EventType == MessageEventType
+}
+
+// OpaqueContent is the marshalled form of a room event content.
+type OpaqueContent []byte
+
+// UnmarshalJSON tells the json unmarshaller to leave the content field as is.
+func (o *OpaqueContent) UnmarshalJSON(b []byte) error {
+	*o = b
+
+	return nil
+}
+
+// ensure OpaqueContent implements json.Unmarshaller.
+var _ json.Unmarshaler = &OpaqueContent{}
+
+// OpaqueEvent is a room event with opaque content.
+type OpaqueEvent struct {
+	EventWithoutContent
+	Content OpaqueContent `json:"content,string"`
+}
+
+// AsRoomMessageEvent converts this event to a MessageEvent. Panics if wrong type.
+func (r OpaqueEvent) AsRoomMessageEvent() (MessageEvent, error) {
+	if !r.IsRoomMessageEvent() {
+		panic("not a message event")
+	}
+
+	var content MessageContent
+
+	if err := json.Unmarshal(r.Content, &content); err != nil {
+		return MessageEvent{}, fmt.Errorf("unmarshal room message event content: %w", err)
+	}
+
+	return MessageEvent{r.EventWithoutContent, content}, nil
 }

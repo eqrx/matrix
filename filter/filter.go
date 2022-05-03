@@ -70,7 +70,7 @@ type response struct {
 }
 
 // Register the filter with the given matrix client and return its ID.
-func (f Filter) Register(ctx context.Context, cli *matrix.Client) (string, error) {
+func (f Filter) Register(ctx context.Context, cli matrix.Client) (string, error) {
 	var response response
 
 	path := "/_matrix/client/v3/user/" + cli.User + "/filter"

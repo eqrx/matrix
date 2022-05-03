@@ -26,7 +26,7 @@ import (
 // Sync state with the given client. Since indicate where to start the response, filter which filter to use and
 // timeoutMilliSeconds tells the server how long to block if the return limit set by the filter is not reached yet.
 // The sync request will time out 10 seconds after that limit.
-func Sync(ctx context.Context, cli *matrix.Client, since, filter string, timeoutMilliSeconds int) (Response, error) {
+func Sync(ctx context.Context, cli matrix.Client, since, filter string, timeoutMilliSeconds int) (Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMilliSeconds)*time.Millisecond+10*time.Second)
 	defer cancel()
 

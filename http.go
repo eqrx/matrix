@@ -23,7 +23,7 @@ import (
 
 // HTTP performs a http exchange with the matrix server. It takes the http method, the path including the query
 // and pointers to request and response payload as arguments. Request payload may be nil.
-func (c *Client) HTTP(ctx context.Context, method, path string, request, response interface{}) error {
+func (c Client) HTTP(ctx context.Context, method, path string, request, response interface{}) error {
 	return HTTP(ctx, c.http, c.homeserver, c.token, method, path, request, response)
 }
 

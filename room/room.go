@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU Affero General Public License along with this program.
 // If not, see <https://www.gnu.org/licenses/>.
 
-// Package room interfaces with matrix rooms.
+// Package room handles matrix rooms.
 package room
 
 import (
@@ -22,23 +22,25 @@ import (
 	"eqrx.net/matrix"
 )
 
-// Room represents a matrix room.
-type Room struct {
-	server *matrix.Matrix
-	id     string
-}
+// Join the given room ID with the client.
+func Join(ctx context.Context, cli matrix.Client, id string) error {
+	path := "/_matrix/client/v3/join/" + id
 
-// New creates a new matrix room handle on the given server for the given room ID.
-func New(server *matrix.Matrix, id string) *Room {
-	if id == "" {
-		panic("id empty")
+	var joinRoomResponse matrix.Response
+
+	if err := cli.HTTP(ctx, http.MethodPost, path, nil, &joinRoomResponse); err != nil {
+		return fmt.Errorf("join rooms: %w", err)
 	}
 
-	return &Room{server, id}
+	if err := joinRoomResponse.AsError(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// Join the room.
-func (r *Room) Join(ctx context.Context) error {
+// Joined returns all rooms this client is part of.
+func Joined(ctx context.Context, cli matrix.Client) ([]string, error) {
 	path := "/_matrix/client/v3/joined_rooms"
 
 	var listRoomsResponse struct {
@@ -46,33 +48,13 @@ func (r *Room) Join(ctx context.Context) error {
 		Rooms []string `json:"joined_rooms"`
 	}
 
-	status, err := r.server.HTTP(ctx, http.MethodGet, path, nil, &listRoomsResponse)
-	if err != nil {
-		return fmt.Errorf("list joined rooms: %w", err)
+	if err := cli.HTTP(ctx, http.MethodGet, path, nil, &listRoomsResponse); err != nil {
+		return nil, fmt.Errorf("list joined rooms: %w", err)
 	}
 
-	if err := listRoomsResponse.AsError(status); err != nil {
-		return err //nolint:wrapcheck
+	if err := listRoomsResponse.AsError(); err != nil {
+		return nil, err
 	}
 
-	for _, room := range listRoomsResponse.Rooms {
-		if room == r.id {
-			return nil
-		}
-	}
-
-	path = "/_matrix/client/v3/join/" + r.id
-
-	var joinRoomResponse matrix.Response
-
-	status, err = r.server.HTTP(ctx, http.MethodPost, path, nil, &joinRoomResponse)
-	if err != nil {
-		return fmt.Errorf("join rooms: %w", err)
-	}
-
-	if err := joinRoomResponse.AsError(status); err != nil {
-		return err //nolint:wrapcheck
-	}
-
-	return nil
+	return listRoomsResponse.Rooms, nil
 }

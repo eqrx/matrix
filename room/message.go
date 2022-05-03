@@ -15,28 +15,35 @@ package room
 
 import (
 	"context"
-	"net/http"
-	"strconv"
+	"encoding/json"
 
 	"eqrx.net/matrix"
+	"eqrx.net/matrix/event"
 )
 
-// MessageEventType indicates a room event is a message.
-const MessageEventType = "m.room.message"
+const (
+	// EventTypeMessage in a event type field indicates that the event is a room message.
+	EventTypeMessage = "m.room.message"
+	// MessageTypeText in a message content message type field indicates that the event is a text message.
+	MessageTypeText = "m.text"
+)
+
+// IsMessageEvent returns true if the given event metadata indicates that the event is a room message.
+func IsMessageEvent(evt event.Metadata) bool {
+	return evt.Type == EventTypeMessage
+}
 
 // MessageEvent is a message sent to a room.
 type MessageEvent struct {
-	EventWithoutContent
+	event.Metadata
 	Content MessageContent `struct:"content"`
 }
 
 // MessageContent represents the content of room message.
 type MessageContent struct {
-	MessageType   string          `json:"msgtype"`
-	Body          string          `json:"body"`
-	Format        string          `json:"format,omitempty"`
-	FormattedBody string          `json:"formatted_body,omitempty"`
-	Relates       *MessageRelates `json:"m.relates_to,omitempty"`
+	MessageType string          `json:"msgtype"`
+	Body        string          `json:"body"`
+	RelatesTo   *MessageRelates `json:"m.relates_to,omitempty"`
 }
 
 // MessageRelates indicates that a message relates so another one.
@@ -51,42 +58,37 @@ type MessageReference struct {
 	Type string `json:"rel_type,omitempty"`
 }
 
-// SendMessage with the given text content to the room.
-func (r *Room) SendMessage(ctx context.Context, text string) error {
-	txID := strconv.FormatUint(r.server.TxID(), 10)
-	path := "/_matrix/client/v3/rooms/" + r.id + "/send/m.room.message/" + txID
-	msg := MessageContent{"m.text", text, "", "", nil}
-
-	var response matrix.Response
-
-	status, err := r.server.HTTP(ctx, http.MethodPut, path, msg, &response)
-	if err != nil {
-		return err //nolint:wrapcheck
-	}
-
-	if err := response.AsError(status); err != nil {
-		return err //nolint:wrapcheck
-	}
-
-	return nil
+// NewTextMessage creates a new MessageEvent with the content of a text message with the given body
+// and sets the room of the event.
+func NewTextMessage(room, body string) MessageEvent {
+	return MessageEvent{event.Metadata{Room: room}, MessageContent{"m.text", body, nil}}
 }
 
-// SendReply sends a text reply to the given source event ID.
-func (r *Room) SendReply(ctx context.Context, source, text string) error {
-	txID := strconv.FormatUint(r.server.TxID(), 10)
-	path := "/_matrix/client/v3/rooms/" + r.id + "/send/m.room.message/" + txID
-	msg := MessageContent{"m.text", text, "", "", &MessageRelates{MessageReference{source, "", ""}}}
-
-	var response matrix.Response
-
-	status, err := r.server.HTTP(ctx, http.MethodPut, path, msg, &response)
-	if err != nil {
-		return err //nolint:wrapcheck
+// AsMessageEvent converts the given opaque event to a room message. Panics is metadata indicates that the event is not
+// a room message and returns an error if unmarshalling of the content failed.
+func AsMessageEvent(evt event.Opaque) (MessageEvent, error) {
+	if evt.Type != EventTypeMessage {
+		panic("not message")
 	}
 
-	if err := response.AsError(status); err != nil {
-		return err //nolint:wrapcheck
+	mevt := MessageEvent{Metadata: evt.Metadata}
+
+	if err := json.Unmarshal(evt.Content, &mevt.Content); err != nil {
+		return mevt, nil
 	}
 
-	return nil
+	return mevt, nil
+}
+
+// AsReplyTo marks the message as a reply to the given event ID.
+func (m MessageEvent) AsReplyTo(toID string) MessageEvent {
+	m.Content.RelatesTo = &MessageRelates{MessageReference{ID: toID}}
+
+	return m
+}
+
+// Send the event via the given matrix client with the given transaction ID.
+// The room field of the even metadata must be set. Returns the event ID of the sent content.
+func (m MessageEvent) Send(ctx context.Context, cli matrix.Client, txID string) (string, error) {
+	return sendContent(ctx, cli, m.Room, EventTypeMessage, txID, m.Content)
 }

@@ -15,25 +15,31 @@
 package matrix
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
-	"sync/atomic"
 )
 
-// Matrix represents a matrix server.
-type Matrix struct {
+// Client to interface with a matrix server.
+type Client struct {
+	http       http.Client
 	homeserver string
 	token      string
-	lastTxID   uint64
+	User       string
+	Device     string
 }
 
-// New creates a new matrix server handle. It takes the homeserver url and the client token
-// as an argument.
-func New(homeserver, token string) *Matrix {
+type whoamiResponse struct {
+	Response
+	User   string `json:"user_id"`
+	Device string `json:"device_id"`
+}
+
+// New creates a new matrix client. It takes the homeserver url to contact
+// and the client token to use as an argument.  It does a whoami request
+// to get user ID and device ID of the token. Returns an error if that
+// fails.
+func New(ctx context.Context, homeserver, token string) (Client, error) {
 	if homeserver == "" {
 		panic("homeserver empty")
 	}
@@ -42,46 +48,21 @@ func New(homeserver, token string) *Matrix {
 		panic("token empty")
 	}
 
-	return &Matrix{strings.TrimRight(homeserver, "/"), token, 0}
-}
+	cli := Client{http.Client{}, strings.TrimRight(homeserver, "/"), token, "", ""}
 
-// TxID generates a unique transaction ID for requests.
-func (m *Matrix) TxID() uint64 { return atomic.AddUint64(&m.lastTxID, 1) }
+	var resp whoamiResponse
 
-// HTTP performs a http exchange with the matrix server. It takes the http method, the path including queries
-// and pointers to request and response payload as arguments. It returns the http status and io errors.
-func (m *Matrix) HTTP(ctx context.Context, method, path string, request, response interface{}) (int, error) {
-	requestBody := &bytes.Buffer{}
-
-	if request != nil {
-		if err := json.NewEncoder(requestBody).Encode(request); err != nil {
-			return -1, fmt.Errorf("marshal request: %w", err)
-		}
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, method, m.homeserver+path, requestBody)
+	err := HTTP(ctx, cli.http, homeserver, token, http.MethodGet, "/_matrix/client/v3/account/whoami", nil, &resp)
 	if err != nil {
-		panic(fmt.Sprintf("new http req: %v", err))
+		return cli, err
 	}
 
-	httpReq.Header.Set("Authorization", "Bearer "+m.token)
-
-	httpResp, err := http.DefaultClient.Do(httpReq)
-	if err != nil {
-		return -1, fmt.Errorf("http: %w", err)
+	if err := resp.AsError(); err != nil {
+		return cli, err
 	}
 
-	err = json.NewDecoder(httpResp.Body).Decode(response)
-	cErr := httpResp.Body.Close()
+	cli.User = resp.User
+	cli.Device = resp.Device
 
-	switch {
-	case err != nil && cErr != nil:
-		return httpResp.StatusCode, fmt.Errorf("resp unmarshal: %w, resp close: %v", err, cErr)
-	case err != nil:
-		return httpResp.StatusCode, fmt.Errorf("resp unmarshal: %w", err)
-	case cErr != nil:
-		return httpResp.StatusCode, fmt.Errorf("resp close: %w", cErr)
-	default:
-		return httpResp.StatusCode, nil
-	}
+	return cli, nil
 }

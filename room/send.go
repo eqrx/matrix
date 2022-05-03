@@ -11,22 +11,34 @@
 // You should have received a copy of the GNU Affero General Public License along with this program.
 // If not, see <https://www.gnu.org/licenses/>.
 
-package matrix
+package room
 
-import "fmt"
+import (
+	"context"
+	"net/http"
 
-// Response is the base for all HTTP responses returned by a matrix server.
-type Response struct {
-	ErrCode string `json:"errcode"`
-	ErrMsg  string `json:"error"`
+	"eqrx.net/matrix"
+)
+
+type sendResponse struct {
+	matrix.Response
+	ID string `json:"event_id"`
 }
 
-// AsError returns a descriptive error instance if the matrix server has included an error
-// in the response. Returns nil otherwise.
-func (r Response) AsError() error {
-	if r.ErrCode != "" || r.ErrMsg != "" {
-		return fmt.Errorf("matrix server response: %s: %s", r.ErrCode, r.ErrMsg)
+func sendContent(
+	ctx context.Context, cli matrix.Client, roomID, eventType, txID string, content interface{},
+) (string, error) {
+	path := "/_matrix/client/v3/rooms/" + roomID + "/send/" + eventType + "/" + txID
+
+	var response sendResponse
+
+	if err := cli.HTTP(ctx, http.MethodPut, path, content, &response); err != nil {
+		return "", err
 	}
 
-	return nil
+	if err := response.AsError(); err != nil {
+		return "", err
+	}
+
+	return response.ID, nil
 }

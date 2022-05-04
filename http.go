@@ -24,11 +24,11 @@ import (
 // HTTP performs a http exchange with the matrix server. It takes the http method, the path including the query
 // and pointers to request and response payload as arguments. Request payload may be nil.
 func (c Client) HTTP(ctx context.Context, method, path string, request, response interface{}) error {
-	return HTTP(ctx, c.http, c.homeserver, c.token, method, path, request, response)
+	return HTTP(ctx, c.homeserver, c.token, method, path, request, response)
 }
 
 func httpRequest(
-	ctx context.Context, cli http.Client, homeserver, token, method, path string, request interface{},
+	ctx context.Context, homeserver, token, method, path string, request interface{},
 ) (*http.Response, error) {
 	requestBody := &bytes.Buffer{}
 
@@ -47,7 +47,7 @@ func httpRequest(
 		httpReq.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	return cli.Do(httpReq)
+	return http.DefaultClient.Do(httpReq)
 }
 
 func httpResponse(httpResp *http.Response, response interface{}) (err error) {
@@ -65,13 +65,13 @@ func httpResponse(httpResp *http.Response, response interface{}) (err error) {
 	return json.NewDecoder(httpResp.Body).Decode(response)
 }
 
-// HTTP performs a http exchange via the matrix client. It takes the homeserver url, the client token, the http method,
+// HTTP performs a http exchangewith a matrix server. It takes the homeserver url, the client token, the http method,
 // the path including the query and pointers to request and response payload as arguments. Request payload may be nil.
-// Token may be "" to send an unauthenticated request.
+// Token may be empty to send an unauthenticated request.
 func HTTP(
-	ctx context.Context, cli http.Client, homeserver, token, method, path string, request, response interface{},
+	ctx context.Context, homeserver, token, method, path string, request, response interface{},
 ) error {
-	httpResp, err := httpRequest(ctx, cli, homeserver, token, method, path, request)
+	httpResp, err := httpRequest(ctx, homeserver, token, method, path, request)
 	if err != nil {
 		return err
 	}

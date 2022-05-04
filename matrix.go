@@ -22,7 +22,6 @@ import (
 
 // Client to interface with a matrix server.
 type Client struct {
-	http       http.Client
 	homeserver string
 	token      string
 	User       string
@@ -48,11 +47,11 @@ func New(ctx context.Context, homeserver, token string) (Client, error) {
 		panic("token empty")
 	}
 
-	cli := Client{http.Client{}, strings.TrimRight(homeserver, "/"), token, "", ""}
+	cli := Client{strings.TrimRight(homeserver, "/"), token, "", ""}
 
 	var resp whoamiResponse
 
-	err := HTTP(ctx, cli.http, homeserver, token, http.MethodGet, "/_matrix/client/v3/account/whoami", nil, &resp)
+	err := HTTP(ctx, homeserver, token, http.MethodGet, "/_matrix/client/v3/account/whoami", nil, &resp)
 	if err != nil {
 		return cli, err
 	}

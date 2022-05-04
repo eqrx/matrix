@@ -40,13 +40,13 @@ type loginResponse struct {
 
 // Login to the the matrix server behind the homeserver URL using the given http.Client, username and password.
 // Returns the device ID and token.
-func Login(ctx context.Context, cli http.Client, homeserver, user, password string) (string, string, error) {
+func Login(ctx context.Context, homeserver, user, password string) (string, string, error) {
 	request := loginRequest{id{"m.id.user", user}, password, "m.login.password"}
 
 	var response loginResponse
 
 	path := "/_matrix/client/v3/login"
-	if err := matrix.HTTP(ctx, cli, homeserver, "", http.MethodPost, path, request, &response); err != nil {
+	if err := matrix.HTTP(ctx, homeserver, "", http.MethodPost, path, request, &response); err != nil {
 		return "", "", err
 	}
 

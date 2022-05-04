@@ -28,6 +28,10 @@ type sendResponse struct {
 func sendContent(
 	ctx context.Context, cli matrix.Client, roomID, eventType, txID string, content interface{},
 ) (string, error) {
+	if roomID == "" || eventType == "" || txID == "" || content == nil {
+		panic("parameter empty")
+	}
+
 	path := "/_matrix/client/v3/rooms/" + roomID + "/send/" + eventType + "/" + txID
 
 	var response sendResponse

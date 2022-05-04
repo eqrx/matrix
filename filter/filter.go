@@ -73,7 +73,7 @@ type response struct {
 func (f Filter) Register(ctx context.Context, cli matrix.Client) (string, error) {
 	var response response
 
-	path := "/_matrix/client/v3/user/" + cli.User + "/filter"
+	path := "/_matrix/client/v3/user/" + cli.User() + "/filter"
 	if err := cli.HTTP(ctx, http.MethodPost, path, f, &response); err != nil {
 		return "", err
 	}

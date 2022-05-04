@@ -24,9 +24,15 @@ import (
 type Client struct {
 	homeserver string
 	token      string
-	User       string
-	Device     string
+	user       string
+	device     string
 }
+
+// User ID of this client.
+func (c Client) User() string { return c.user }
+
+// Device ID of this client.
+func (c Client) Device() string { return c.device }
 
 type whoamiResponse struct {
 	Response
@@ -60,8 +66,8 @@ func New(ctx context.Context, homeserver, token string) (Client, error) {
 		return cli, err
 	}
 
-	cli.User = resp.User
-	cli.Device = resp.Device
+	cli.user = resp.User
+	cli.device = resp.Device
 
 	return cli, nil
 }

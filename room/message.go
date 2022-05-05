@@ -89,6 +89,6 @@ func (m MessageEvent) AsReplyTo(toID string) MessageEvent {
 
 // Send the event via the given matrix client with the given transaction ID.
 // The room field of the even metadata must be set. Returns the event ID of the sent content.
-func (m MessageEvent) Send(ctx context.Context, cli matrix.Client, txID string) (string, error) {
-	return sendContent(ctx, cli, m.Room, EventTypeMessage, txID, m.Content)
+func (m MessageEvent) Send(ctx context.Context, cli matrix.Client) (string, error) {
+	return sendContent(ctx, cli, m.Room, EventTypeMessage, m.Content)
 }

@@ -71,6 +71,6 @@ func AsReactionEvent(evt event.Opaque) (ReactionEvent, error) {
 
 // Send the event via the given matrix client with the given transaction ID.
 // The room field of the even metadata must be set. Returns the event ID of the sent content.
-func (r ReactionEvent) Send(ctx context.Context, cli matrix.Client, txID string) (string, error) {
-	return sendContent(ctx, cli, r.Room, EventTypeReaction, txID, r.Content)
+func (r ReactionEvent) Send(ctx context.Context, cli matrix.Client) (string, error) {
+	return sendContent(ctx, cli, r.Room, EventTypeReaction, r.Content)
 }

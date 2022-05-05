@@ -16,8 +16,11 @@ package matrix
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
+	"sync/atomic"
+	"time"
 )
 
 // Client to interface with a matrix server.
@@ -26,13 +29,8 @@ type Client struct {
 	token      string
 	user       string
 	device     string
+	txID       *int64
 }
-
-// User ID of this client.
-func (c Client) User() string { return c.user }
-
-// Device ID of this client.
-func (c Client) Device() string { return c.device }
 
 type whoamiResponse struct {
 	Response
@@ -53,7 +51,8 @@ func New(ctx context.Context, homeserver, token string) (Client, error) {
 		panic("token empty")
 	}
 
-	cli := Client{strings.TrimRight(homeserver, "/"), token, "", ""}
+	txID := time.Now().UnixMilli()
+	cli := Client{strings.TrimRight(homeserver, "/"), token, "", "", &txID}
 
 	var resp whoamiResponse
 
@@ -71,3 +70,12 @@ func New(ctx context.Context, homeserver, token string) (Client, error) {
 
 	return cli, nil
 }
+
+// User ID of this client.
+func (c Client) User() string { return c.user }
+
+// Device ID of this client.
+func (c Client) Device() string { return c.device }
+
+// NextTXID returns the next unique transaction ID as string.
+func (c Client) NextTXID() string { return fmt.Sprint(atomic.AddInt64(c.txID, 1)) }
